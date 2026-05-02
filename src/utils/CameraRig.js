@@ -35,21 +35,17 @@ export class CameraRig {
 	 * @param {number} delta - Time delta in seconds
 	 */
 	update(delta) {
-		const targetX = this.target.x + this.pointer.x * 2;
-		const limitedX = Math.max(
-			this.xLimit[0],
-			Math.min(this.xLimit[1], targetX),
-		);
+		const xMid = (this.xLimit[0] + this.xLimit[1]) / 2;
+		const xHalf = (this.xLimit[1] - this.xLimit[0]) / 2;
+		const targetX = xMid + this.pointer.x * xHalf;
 
-		easing.damp(this.camera.position, "x", limitedX, this.smoothTime, delta);
+		easing.damp(this.camera.position, "x", targetX, this.smoothTime, delta);
 
 		if (this.yLimit) {
-			const targetY = this.target.y + this.pointer.y * 10;
-			const limitedY = Math.max(
-				this.yLimit[0],
-				Math.min(this.yLimit[1], targetY),
-			);
-			easing.damp(this.camera.position, "y", limitedY, this.smoothTime, delta);
+			const yMid = (this.yLimit[0] + this.yLimit[1]) / 2;
+			const yHalf = (this.yLimit[1] - this.yLimit[0]) / 2;
+			const targetY = yMid + this.pointer.y * yHalf;
+			easing.damp(this.camera.position, "y", targetY, this.smoothTime, delta);
 		}
 
 		this.camera.lookAt(this.target);

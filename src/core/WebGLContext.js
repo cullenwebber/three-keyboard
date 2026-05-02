@@ -10,7 +10,7 @@ class WebGLContext {
 		this.renderer = null;
 		this.canvas = null;
 		this.fullScreenDimensions = { width: 0, height: 0 };
-		this.pixelRatio = Math.min(window.devicePixelRatio, 2.0);
+		this.pixelRatio = Math.min(window.devicePixelRatio, 1.5);
 
 		WebGLContext.instance = this;
 	}
@@ -23,7 +23,7 @@ class WebGLContext {
 	#setUpRenderer() {
 		this.renderer = new THREE.WebGLRenderer({
 			canvas: this.canvas,
-			antialias: false,
+			antialias: true,
 		});
 
 		this.fullScreenDimensions = this.getFullScreenDimensions();
@@ -35,8 +35,7 @@ class WebGLContext {
 		this.renderer.setPixelRatio(this.pixelRatio);
 
 		this.renderer.shadowMap.enabled = false;
-		// this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-		// this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+		this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
 	}
 
 	getFullScreenDimensions() {
@@ -69,7 +68,7 @@ class WebGLContext {
 	}
 
 	onResize(width, height) {
-		this.pixelRatio = Math.min(window.devicePixelRatio, 2);
+		this.pixelRatio = Math.min(window.devicePixelRatio, 1.5);
 		this.renderer.setSize(width, height);
 		this.renderer.setPixelRatio(this.pixelRatio);
 	}

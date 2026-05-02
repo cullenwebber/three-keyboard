@@ -4,10 +4,17 @@
 		<meta charset="UTF-8" />
 		<link rel="icon" type="image/svg+xml" href="/vite.svg" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>Sketch</title>
+		<title>Keycap Sketch</title>
 	</head>
 	<body>
-		<div id="app" class="h-lvh w-full"></div>
+		<div id="app" class="h-lvh w-full relative">
+			<button
+				data-reset-button
+				class="text-white z-50 absolute top-4 right-4 cursor-pointer underline"
+			>
+				Reset
+			</button>
+		</div>
 		<script type="module" src="/src/main.js"></script>
 	</body>
 </html>
