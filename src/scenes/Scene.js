@@ -68,7 +68,10 @@ export default class Scene {
 	#setupCamera() {
 		this.#calculateAspectRatio();
 		this.camera = new THREE.PerspectiveCamera(45, this.aspectRatio, 1, 100);
-		this.camera.position.z = 4;
+		const isMobile = matchMedia("(pointer: coarse)").matches;
+		this.camera.position.z = isMobile ? 3.25 : 4;
+		this.camera.position.x = 3;
+		this.camera.position.y = 1.5;
 	}
 
 	#setupCameraRig() {
@@ -80,7 +83,10 @@ export default class Scene {
 	}
 
 	async #addObjects() {
+		const isMobile = matchMedia("(pointer: coarse)").matches;
 		this.keyCaps = new KeyCaps({
+			rows: isMobile ? 10 : 18,
+			cols: isMobile ? 14 : 25,
 			physics: this.physics,
 			onReady: (kc) => {
 				this.#buildContainer(kc);
@@ -136,23 +142,41 @@ export default class Scene {
 		this._tiltGravity = { x: 0, y: -9.81, z: 0 };
 		this._tiltActive = false;
 
-		const start = async () => {
-			const E = window.DeviceOrientationEvent;
-			if (E && typeof E.requestPermission === "function") {
-				try {
-					const res = await E.requestPermission();
-					if (res !== "granted") return;
-				} catch {
-					return;
-				}
-			}
+		const enable = () => {
 			window.addEventListener("deviceorientation", (e) => this.#onTilt(e));
 			this._tiltActive = true;
-			window.removeEventListener("touchend", start);
-			window.removeEventListener("click", start);
 		};
-		window.addEventListener("touchend", start, { once: true });
-		window.addEventListener("click", start, { once: true });
+
+		const E = window.DeviceOrientationEvent;
+		const needsPermission = E && typeof E.requestPermission === "function";
+
+		if (!needsPermission) {
+			enable();
+			return;
+		}
+
+		const overlay = document.querySelector("[data-start-overlay]");
+		if (!overlay) {
+			enable();
+			return;
+		}
+		overlay.hidden = false;
+		overlay.classList.remove("hidden");
+		overlay.classList.add("flex");
+
+		const onTap = () => {
+			E.requestPermission()
+				.then((res) => {
+					if (res === "granted") enable();
+				})
+				.catch(() => {})
+				.finally(() => {
+					overlay.hidden = true;
+					overlay.classList.add("hidden");
+					overlay.classList.remove("flex");
+				});
+		};
+		overlay.addEventListener("click", onTap, { once: true });
 	}
 
 	#onTilt(event) {

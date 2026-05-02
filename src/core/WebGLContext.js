@@ -10,7 +10,11 @@ class WebGLContext {
 		this.renderer = null;
 		this.canvas = null;
 		this.fullScreenDimensions = { width: 0, height: 0 };
-		this.pixelRatio = Math.min(window.devicePixelRatio, 1.5);
+		this.isMobile = matchMedia("(pointer: coarse)").matches;
+		this.pixelRatio = Math.min(
+			window.devicePixelRatio,
+			this.isMobile ? 1.25 : 1.5,
+		);
 
 		WebGLContext.instance = this;
 	}
@@ -68,7 +72,10 @@ class WebGLContext {
 	}
 
 	onResize(width, height) {
-		this.pixelRatio = Math.min(window.devicePixelRatio, 1.5);
+		this.pixelRatio = Math.min(
+			window.devicePixelRatio,
+			this.isMobile ? 1.25 : 1.5,
+		);
 		this.renderer.setSize(width, height);
 		this.renderer.setPixelRatio(this.pixelRatio);
 	}
