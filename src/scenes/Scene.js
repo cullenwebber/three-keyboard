@@ -4,6 +4,7 @@ import { CameraRig } from "../utils/CameraRig";
 import KeyCaps from "../meshes/KeyCaps";
 import Legends from "../meshes/Legends";
 import Physics from "../core/Physics";
+import MobileControls from "../utils/MobileControls";
 import { HDRLoader } from "three/examples/jsm/Addons.js";
 
 export default class Scene {
@@ -135,27 +136,10 @@ export default class Scene {
 		this._lastScreenY = window.screenY;
 		this._impulseScale = 0.0015;
 		this._torqueScale = 0.0001;
-		this.#setupTilt();
-	}
-
-	#enableShake() {
-		const shakeThreshold = 14;
-		const cooldownMs = 180;
-		const impulseScale = 80;
-		let lastShake = 0;
-
-		window.addEventListener("devicemotion", (e) => {
-			const a = e.acceleration;
-			if (!a) return;
-			const ax = a.x ?? 0;
-			const ay = a.y ?? 0;
-			const az = a.z ?? 0;
-			const mag = Math.hypot(ax, ay, az);
-			if (mag < shakeThreshold) return;
-			const now = performance.now();
-			if (now - lastShake < cooldownMs) return;
-			lastShake = now;
-			this.#applyImpulse(ax * impulseScale, -ay * impulseScale);
+		this.mobileControls = new MobileControls({
+			physics: this.physics,
+			getBodies: () => this.keyCaps?.bodies,
+			applyImpulse: (dx, dy) => this.#applyImpulse(dx, dy),
 		});
 	}
 
@@ -180,66 +164,6 @@ export default class Scene {
 				},
 				true,
 			);
-		}
-	}
-
-	#setupTilt() {
-		this._tiltGravity = { x: 0, y: -9.81, z: 0 };
-		this._tiltActive = false;
-
-		const enable = () => {
-			window.addEventListener("deviceorientation", (e) => this.#onTilt(e));
-			this._tiltActive = true;
-			this.#enableShake();
-		};
-
-		const O = window.DeviceOrientationEvent;
-		const M = window.DeviceMotionEvent;
-		const needsOrientation = O && typeof O.requestPermission === "function";
-		const needsMotion = M && typeof M.requestPermission === "function";
-
-		if (!needsOrientation && !needsMotion) {
-			enable();
-			return;
-		}
-
-		const overlay = document.querySelector("[data-start-overlay]");
-		if (!overlay) {
-			enable();
-			return;
-		}
-		overlay.hidden = false;
-		overlay.classList.remove("hidden");
-		overlay.classList.add("flex");
-
-		const onTap = () => {
-			const reqs = [];
-			if (needsOrientation) reqs.push(O.requestPermission().catch(() => "denied"));
-			if (needsMotion) reqs.push(M.requestPermission().catch(() => "denied"));
-			Promise.all(reqs)
-				.then((results) => {
-					if (results.every((r) => r === "granted")) enable();
-				})
-				.finally(() => {
-					overlay.hidden = true;
-					overlay.classList.add("hidden");
-					overlay.classList.remove("flex");
-				});
-		};
-		overlay.addEventListener("click", onTap, { once: true });
-	}
-
-	#onTilt(event) {
-		const beta = (event.beta ?? 0) * (Math.PI / 180);
-		const gamma = (event.gamma ?? 0) * (Math.PI / 180);
-		const g = 9.81 * 2.25;
-		this._tiltGravity.x = g * Math.sin(gamma);
-		this._tiltGravity.y = -g * Math.cos(beta) * Math.cos(gamma);
-		this._tiltGravity.z = g * Math.sin(beta);
-		if (this.physics?.world) this.physics.world.gravity = this._tiltGravity;
-		const bodies = this.keyCaps?.bodies;
-		if (bodies) {
-			for (let i = 0; i < bodies.length; i++) bodies[i].wakeUp();
 		}
 	}
 
