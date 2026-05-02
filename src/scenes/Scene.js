@@ -136,36 +136,27 @@ export default class Scene {
 		this._impulseScale = 0.0015;
 		this._torqueScale = 0.0001;
 		this.#setupTilt();
-		this.#setupSwipeImpulse();
 	}
 
-	#setupSwipeImpulse() {
-		this._lastTouchX = 0;
-		this._lastTouchY = 0;
-		this._touchActive = false;
-		const swipeScale = 0.35;
+	#enableShake() {
+		const shakeThreshold = 14;
+		const cooldownMs = 180;
+		const impulseScale = 80;
+		let lastShake = 0;
 
-		const onDown = (e) => {
-			this._lastTouchX = e.clientX;
-			this._lastTouchY = e.clientY;
-			this._touchActive = true;
-		};
-		const onMove = (e) => {
-			if (!this._touchActive) return;
-			const dx = e.clientX - this._lastTouchX;
-			const dy = e.clientY - this._lastTouchY;
-			this._lastTouchX = e.clientX;
-			this._lastTouchY = e.clientY;
-			this.#applyImpulse(dx * swipeScale, dy * swipeScale);
-		};
-		const onUp = () => {
-			this._touchActive = false;
-		};
-
-		window.addEventListener("pointerdown", onDown);
-		window.addEventListener("pointermove", onMove);
-		window.addEventListener("pointerup", onUp);
-		window.addEventListener("pointercancel", onUp);
+		window.addEventListener("devicemotion", (e) => {
+			const a = e.acceleration;
+			if (!a) return;
+			const ax = a.x ?? 0;
+			const ay = a.y ?? 0;
+			const az = a.z ?? 0;
+			const mag = Math.hypot(ax, ay, az);
+			if (mag < shakeThreshold) return;
+			const now = performance.now();
+			if (now - lastShake < cooldownMs) return;
+			lastShake = now;
+			this.#applyImpulse(ax * impulseScale, -ay * impulseScale);
+		});
 	}
 
 	#applyImpulse(dx, dy) {
@@ -199,12 +190,15 @@ export default class Scene {
 		const enable = () => {
 			window.addEventListener("deviceorientation", (e) => this.#onTilt(e));
 			this._tiltActive = true;
+			this.#enableShake();
 		};
 
-		const E = window.DeviceOrientationEvent;
-		const needsPermission = E && typeof E.requestPermission === "function";
+		const O = window.DeviceOrientationEvent;
+		const M = window.DeviceMotionEvent;
+		const needsOrientation = O && typeof O.requestPermission === "function";
+		const needsMotion = M && typeof M.requestPermission === "function";
 
-		if (!needsPermission) {
+		if (!needsOrientation && !needsMotion) {
 			enable();
 			return;
 		}
@@ -219,11 +213,13 @@ export default class Scene {
 		overlay.classList.add("flex");
 
 		const onTap = () => {
-			E.requestPermission()
-				.then((res) => {
-					if (res === "granted") enable();
+			const reqs = [];
+			if (needsOrientation) reqs.push(O.requestPermission().catch(() => "denied"));
+			if (needsMotion) reqs.push(M.requestPermission().catch(() => "denied"));
+			Promise.all(reqs)
+				.then((results) => {
+					if (results.every((r) => r === "granted")) enable();
 				})
-				.catch(() => {})
 				.finally(() => {
 					overlay.hidden = true;
 					overlay.classList.add("hidden");
@@ -241,6 +237,10 @@ export default class Scene {
 		this._tiltGravity.y = -g * Math.cos(beta) * Math.cos(gamma);
 		this._tiltGravity.z = g * Math.sin(beta);
 		if (this.physics?.world) this.physics.world.gravity = this._tiltGravity;
+		const bodies = this.keyCaps?.bodies;
+		if (bodies) {
+			for (let i = 0; i < bodies.length; i++) bodies[i].wakeUp();
+		}
 	}
 
 	#applyWindowImpulse() {
