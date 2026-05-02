@@ -136,6 +136,60 @@ export default class Scene {
 		this._impulseScale = 0.0015;
 		this._torqueScale = 0.0001;
 		this.#setupTilt();
+		this.#setupSwipeImpulse();
+	}
+
+	#setupSwipeImpulse() {
+		this._lastTouchX = 0;
+		this._lastTouchY = 0;
+		this._touchActive = false;
+		const swipeScale = 0.35;
+
+		const onDown = (e) => {
+			this._lastTouchX = e.clientX;
+			this._lastTouchY = e.clientY;
+			this._touchActive = true;
+		};
+		const onMove = (e) => {
+			if (!this._touchActive) return;
+			const dx = e.clientX - this._lastTouchX;
+			const dy = e.clientY - this._lastTouchY;
+			this._lastTouchX = e.clientX;
+			this._lastTouchY = e.clientY;
+			this.#applyImpulse(dx * swipeScale, dy * swipeScale);
+		};
+		const onUp = () => {
+			this._touchActive = false;
+		};
+
+		window.addEventListener("pointerdown", onDown);
+		window.addEventListener("pointermove", onMove);
+		window.addEventListener("pointerup", onUp);
+		window.addEventListener("pointercancel", onUp);
+	}
+
+	#applyImpulse(dx, dy) {
+		if (!this.keyCaps?.bodies?.length) return;
+		if (dx === 0 && dy === 0) return;
+		const impulse = {
+			x: dx * this._impulseScale,
+			y: dy * this._impulseScale,
+			z: 0,
+		};
+		const ts = this._torqueScale;
+		for (let i = 0; i < this.keyCaps.bodies.length; i++) {
+			const b = this.keyCaps.bodies[i];
+			b.applyImpulse(impulse, true);
+			const jitter = ((i * 9301 + 49297) % 233280) / 233280 - 0.5;
+			b.applyTorqueImpulse(
+				{
+					x: dy * ts * (0.5 + jitter),
+					y: (dx + dy) * ts * jitter,
+					z: -dx * ts * (0.5 + jitter),
+				},
+				true,
+			);
+		}
 	}
 
 	#setupTilt() {
@@ -182,7 +236,7 @@ export default class Scene {
 	#onTilt(event) {
 		const beta = (event.beta ?? 0) * (Math.PI / 180);
 		const gamma = (event.gamma ?? 0) * (Math.PI / 180);
-		const g = 9.81;
+		const g = 9.81 * 2.25;
 		this._tiltGravity.x = g * Math.sin(gamma);
 		this._tiltGravity.y = -g * Math.cos(beta) * Math.cos(gamma);
 		this._tiltGravity.z = g * Math.sin(beta);
@@ -190,32 +244,11 @@ export default class Scene {
 	}
 
 	#applyWindowImpulse() {
-		if (!this.keyCaps?.bodies?.length) return;
 		const dx = window.screenX - this._lastScreenX;
 		const dy = window.screenY - this._lastScreenY;
 		this._lastScreenX = window.screenX;
 		this._lastScreenY = window.screenY;
-		if (dx === 0 && dy === 0) return;
-
-		const impulse = {
-			x: dx * this._impulseScale,
-			y: dy * this._impulseScale,
-			z: 0,
-		};
-		const ts = this._torqueScale;
-		for (let i = 0; i < this.keyCaps.bodies.length; i++) {
-			const b = this.keyCaps.bodies[i];
-			b.applyImpulse(impulse, true);
-			const jitter = ((i * 9301 + 49297) % 233280) / 233280 - 0.5;
-			b.applyTorqueImpulse(
-				{
-					x: dy * ts * (0.5 + jitter),
-					y: (dx + dy) * ts * jitter,
-					z: -dx * ts * (0.5 + jitter),
-				},
-				true,
-			);
-		}
+		this.#applyImpulse(dx, dy);
 	}
 
 	#calculateAspectRatio() {
